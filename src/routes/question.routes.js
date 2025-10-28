@@ -1,23 +1,17 @@
 import express from "express";
 import {
-  getQuestions,
-  getQuestion,
   createQuestion,
+  getQuestions,
   updateQuestion,
   deleteQuestion,
-  getStats,
-  getQuestionTypes,
 } from "../controllers/question.controller.js";
-
+import { upload } from "../middleware/upload.middleware.js";
 
 const router = express.Router();
 
-router.get("/types",getQuestionTypes );
-router.get("/stats", getStats);
+router.post("/", upload.single("solutionImage"), createQuestion);
 router.get("/", getQuestions);
-router.get("/:id", getQuestion);
-router.post("/", createQuestion);
-router.put("/:id", updateQuestion);
+router.patch("/:id", updateQuestion);
 router.delete("/:id", deleteQuestion);
 
 export default router;
