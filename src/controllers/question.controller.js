@@ -1,33 +1,5 @@
 import Question from "../models/question.model.js";
-import Topic from '../models/topic.model.js';
 
-export const getQuestions = async (req, res) => {
-  try {
-    const filter = {};
-    if (req.query.section) filter.section = req.query.section;
-    if (req.query.difficulty) filter.difficulty = req.query.difficulty;
-    if (req.query.topic) filter.topics = req.query.topic;
-
-    const questions = await Question.find(filter).populate("topics");
-    res.json(questions);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// GET /api/questions/:id
-
-export const getQuestion = async (req, res)=>{
-    try {
-    const q = await Question.findById(req.params.id);
-    if (!q) return res.status(404).json({ message: "Question not found" });
-    res.json(q);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// POST /api/questions
 export const createQuestion = async (req, res) => {
   try {
     const {
@@ -62,7 +34,19 @@ export const createQuestion = async (req, res) => {
   }
 };
 
+export const getQuestions = async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.section) filter.section = req.query.section;
+    if (req.query.difficulty) filter.difficulty = req.query.difficulty;
+    if (req.query.topic) filter.topics = req.query.topic;
 
+    const questions = await Question.find(filter).populate("topics");
+    res.json(questions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 export const updateQuestion = async (req, res) => {
   try {
@@ -95,29 +79,5 @@ export const deleteQuestion = async (req, res) => {
     res.json({ message: "Deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
-  }
-};
-export const getStats = async (req, res) => {
-  try {
-    const total = await Question.countDocuments();
-    const todo = await Question.countDocuments({ section: "todo" });
-    const completed = await Question.countDocuments({ section: "completed" });
-    const easy = await Question.countDocuments({ difficulty: "Easy" });
-    const medium = await Question.countDocuments({ difficulty: "Medium" });
-    const hard = await Question.countDocuments({ difficulty: "Hard" });
-
-    res.json({ total, todo, completed, easy, medium, hard });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-export const getQuestionTypes = async (req, res) => {
-  try {
-    const types = await Question.distinct("questionType", { questionType: { $exists: true, $ne: "" }});
-    // `distinct` returns an array of unique values; respond directly
-    res.json(types);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
   }
 };
