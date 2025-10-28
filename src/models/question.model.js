@@ -21,13 +21,9 @@ const questionSchema = new mongoose.Schema(
       default: "easy",
     },
     topics: [{ type: mongoose.Schema.Types.ObjectId, ref: "Topic" }],
-
     solutionCode: { type: String },
     solutionImage: { type: String },
     notes: { type: String },
-
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );

@@ -1,20 +1,17 @@
 import Question from "../models/question.model.js";
+import Topic from '../models/topic.model.js';
+
 export const getQuestions = async (req, res) => {
   try {
-    const { section, difficulty, questionType, tag, search } = req.query;
-
     const filter = {};
+    if (req.query.section) filter.section = req.query.section;
+    if (req.query.difficulty) filter.difficulty = req.query.difficulty;
+    if (req.query.topic) filter.topics = req.query.topic;
 
-    if (section) filter.section = section;
-    if (difficulty) filter.difficulty = difficulty;
-    if (questionType) filter.questionType = questionType;
-    if (tag) filter.tags = { $in: Array.isArray(tag) ? tag : [tag] };
-    if (search) filter.title = { $regex: search, $options: "i" }; 
-
-    const questions = await Question.find(filter).sort({ createdAt: -1 });
+    const questions = await Question.find(filter).populate("topics");
     res.json(questions);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -33,28 +30,35 @@ export const getQuestion = async (req, res)=>{
 // POST /api/questions
 export const createQuestion = async (req, res) => {
   try {
-    const { title, solution, questionType, section, difficulty, tags } = req.body;
+    const {
+      question,
+      section,
+      difficulty,
+      topics,
+      solutionCode,
+      notes,
+    } = req.body;
 
-    if (!title) return res.status(400).json({ message: "Title is required" });
-
-    // If user sets section to 'completed' without solution → reject
-    if ((section === "completed") && !solution) {
-      return res.status(400).json({ message: "Solution required when creating a completed question" });
+    // Only allow moving to completed/revision if solution exists
+    if ((section === "completed" || section === "revision") && !solutionCode) {
+      return res.status(400).json({
+        message: "Solution required to move question to completed/revision",
+      });
     }
 
-    const q = new Question({
-      title,
-      solution: solution || "",
-      questionType: questionType || "",
-      section: solution ? "completed" : (section || "todo"),
-      difficulty: difficulty || "Easy",
-      tags: tags || []
+    const newQ = await Question.create({
+      question,
+      section,
+      difficulty,
+      topics,
+      solutionCode,
+      notes,
+      solutionImage: req.file ? `/uploads/${req.file.filename}` : null,
     });
 
-    const saved = await q.save();
-    res.status(201).json(saved);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(201).json(newQ);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -62,46 +66,37 @@ export const createQuestion = async (req, res) => {
 
 export const updateQuestion = async (req, res) => {
   try {
-    const { title, solution, section, difficulty, tags, questionType } = req.body;
+    const { id } = req.params;
+    const updates = req.body;
 
-    if (questionType !== undefined) {
-      return res.status(400).json({ message: "questionType cannot be updated" });
+    const question = await Question.findById(id);
+    if (!question) return res.status(404).json({ message: "Not found" });
+
+    // Cannot move back to TODO if solution exists
+    if (updates.section === "todo" && question.solutionCode) {
+      return res.status(400).json({
+        message: "Cannot move back to TODO if a solution exists",
+      });
     }
 
-    const q = await Question.findById(req.params.id);
-    if (!q) return res.status(404).json({ message: "Question not found" });
+    // Prevent editing topics
+    if (updates.topics) delete updates.topics;
 
-    if (title !== undefined) q.title = title;
-    if (solution !== undefined) {
-      q.solution = solution;
-      q.section = "completed"; // move to completed when solution provided
-    }
-    if (section !== undefined) q.section = section;
-    if (difficulty !== undefined) q.difficulty = difficulty;
-    if (tags !== undefined) q.tags = tags;
-
-    // If after updates the question is in 'completed' section, ensure solution exists
-    if (q.section === "completed" && (!q.solution || q.solution.trim() === "")) {
-      return res.status(400).json({ message: "Completed questions must have a solution" });
-    }
-
-    const updated = await q.save();
+    const updated = await Question.findByIdAndUpdate(id, updates, { new: true });
     res.json(updated);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
 export const deleteQuestion = async (req, res) => {
   try {
-    const deleted = await Question.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ message: "Question not found" });
-    res.json({ message: "Deleted" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    await Question.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
-
 export const getStats = async (req, res) => {
   try {
     const total = await Question.countDocuments();
