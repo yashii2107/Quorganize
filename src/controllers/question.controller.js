@@ -47,6 +47,46 @@ export const getQuestions = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+export const getQuestionById = async (req, res) => {
+  try {
+    const question = await Question.findById(req.params.id).populate("topics");
+    if (!question) {
+      return res.status(404).json({ message: "Question not found" });
+    }
+    res.status(200).json(question);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching question", error });
+  }
+};
+
+export const getStats = async (req, res) => {
+  try {
+    const total = await Question.countDocuments();
+    const todoCount = await Question.countDocuments({ section: "todo" });
+    const completedCount = await Question.countDocuments({ section: "completed" });
+    const revisionCount = await Question.countDocuments({ section: "revision" });
+
+    const easyCount = await Question.countDocuments({ difficulty: "easy" });
+    const mediumCount = await Question.countDocuments({ difficulty: "medium" });
+    const hardCount = await Question.countDocuments({ difficulty: "hard" });
+
+    res.status(200).json({
+      total,
+      sectionCounts: {
+        todo: todoCount,
+        completed: completedCount,
+        revision: revisionCount,
+      },
+      difficultyCounts: {
+        easy: easyCount,
+        medium: mediumCount,
+        hard: hardCount,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching stats", error });
+  }
+};
 
 export const updateQuestion = async (req, res) => {
   try {
